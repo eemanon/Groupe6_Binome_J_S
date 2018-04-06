@@ -2,11 +2,28 @@ import socket
 import sys
 import time
 import datetime
+import re
+
+
+#functions
+def connect(alias):
+    print ("connect command")
+    validUsername = re.search("^[a-zA-Z0-9]+${1,31}", alias)
+    if validUsername:
+        return "200 hello, "+alias
+    else:
+        return "440 invalid username"
+
 
 
 def interprete(cmd):
-    return "hello you sexy"
+    cmd_list = cmd.split()
+    if cmd_list[0] in commands:
+        return commands[cmd_list[0]](cmd_list[1])
+    else:
+        return "480 Invalid Command"
 
+commands = {'CONNECT':connect}
 
 if __name__ == '__main__':
     if (len(sys.argv) < 2):
@@ -39,6 +56,7 @@ if __name__ == '__main__':
                     if data:
                         f.write(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + " " + str(data.decode()) + "\n")
                         reponse = interprete(data.decode().upper())
+                        print (reponse)
                         connection.sendall(reponse.encode())
                     else:
                         break
@@ -48,4 +66,5 @@ if __name__ == '__main__':
                 connection.close()
                 f.write(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + " Server stopped\n")
     finally:
+        connection.close()
         f.close()
