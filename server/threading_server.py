@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import socket, threading, sys, re, json, random
+import socket, threading, sys, re, json, random, ast
 
 class ClientThread(threading.Thread):
 
@@ -16,7 +16,8 @@ class ClientThread(threading.Thread):
         self.csocket = clientsocket
         self.state = "AUTHORIZATION"
         self.active = True
-        self.commands = {'CONNECT': self.connect, 'QUIT': self.quit}
+        self.commands = {'CONNECT': self.connect, 'QUIT': self.quit, 'ADD': self.add}
+        self.position = ()
         print "[+] New thread started for "+ip+":"+str(port)
 
     def run(self):
@@ -56,6 +57,35 @@ class ClientThread(threading.Thread):
         else:
             return "480 Invalid Command"
 
+    def add(self, coords):
+        if self.state == "TRANSACTION":
+            pos = ()
+            try:
+                pos = ast.literal_eval(coords)
+                #try placing robot on map...
+                #check if blocking element on position
+                with self.maplock:
+                    #si la coordonate est libre cad pas dans la liste des blockingelements ni robots:
+                    blocking = len(filter(lambda element: element["x"] == pos[0] and element["y"] == pos[1],self.map["blockingElements"]))
+                    robots = len(filter(lambda element: element["x"] == pos[0] and element["y"] == pos[1], self.map["robots"]))
+                    if (robots+blocking)==0:
+                        print ("robot can be placed")
+                        #placing robot...
+                        #1 into map
+                        self.map["robots"].append({"name":self.alias, "x":pos[0],"y":pos[1]})
+                        #2 modifying its own coords
+                        self.position = pos
+                        print(self.map)
+                        return "210 robot is added"
+                    else:
+                        return "430 The coordinate is not free"
+
+
+            except:
+                return "400 Coordinates invalid"
+        else:
+            return "480 Please connect before adding a robot."
+
     def quit(self):
         print ("Disconnecting "+str(self.port))
         self.active = False
@@ -81,7 +111,6 @@ class ClientThread(threading.Thread):
         else:
             return "480 Invalid Command\r\n"
 
-
 def createMap(size, blockingElements, ressources):
     """
     :param size: size of map
@@ -92,7 +121,7 @@ def createMap(size, blockingElements, ressources):
     the latter is an initially empty array.
     """
     if blockingElements+ressources>1.0:
-        print ("blocking elments and ressources together cant be higher than 1.0")
+        print ("blocking elements and ressources together cant be higher than 1.0")
         exit(1)
     blocktypes = ["rock", "plant", "hole"]
     ressourcetypes = ["Gold", "Diamant"]
