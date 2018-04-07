@@ -5,12 +5,17 @@ import datetime
 import re
 
 
+state = "connect"
+
 #functions
 def connect(alias):
     print ("connect command")
     validUsername = re.search("^[a-zA-Z0-9]+${1,31}", alias)
     if validUsername:
+        global state
+        state = "transaction"
         return "200 hello, "+alias
+
     else:
         return "440 invalid username"
 
@@ -62,9 +67,7 @@ if __name__ == '__main__':
                         break
             except KeyboardInterrupt:
                 break
-            finally:
-                connection.close()
-                f.write(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + " Server stopped\n")
     finally:
         connection.close()
+        f.write(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + " Server stopped\n")
         f.close()
