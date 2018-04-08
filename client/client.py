@@ -6,7 +6,7 @@ import json
 #port = 9021
 
 if len(sys.argv) != 3:
-    print(f"Usage: {sys.argv[0]} <ip> <port>", file = sys.stderr)
+    print(f"Usage: {sys.argv[0]} <ip> <port>", file=sys.stderr)
     sys.exit(1)
 
 SERVER = sys.argv[1]
