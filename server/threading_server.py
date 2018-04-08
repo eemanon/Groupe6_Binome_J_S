@@ -1,33 +1,85 @@
 #!/usr/bin/env python
 
-import socket, threading, sys, re, json, random, ast
+import socket, threading, sys, re, json, random, ast, time, Queue
+
+
+class BroadCastThread(threading.Thread):
+    def __init__(self, users, userlock, active, broadCastQueue, map, maplock):
+        threading.Thread.__init__(self)
+        self.active = active
+        self.broadCastQueue = broadCastQueue
+        self.users = users
+        self.userlock = userlock
+        self.map = map
+        self.maplock = maplock
+
+    def run(self):
+        while self.active:
+            msg = self.broadCastQueue.get()
+            output = self.interprete(msg)
+            print("sending to everyone the map...")
+            with self.userlock:
+                for user, userprops in self.users.items():
+                    userprops["mailbox"].put(output)
+    def interprete(self, msg):
+        if msg == "update":
+            with self.maplock:
+                return "100 " + json.dumps(self.map)+"\r\n"
+
+class SendThread(threading.Thread):
+
+    def __init__(self, clientsocket, socketLock, active, queue):
+        threading.Thread.__init__(self)
+        self.socketLock = socketLock
+        self.clientsocket = clientsocket
+        self.active = active            #thread safe because atomic :)
+        self.mailbox = queue
+
+    def run(self):
+        while self.active:
+            command = self.mailbox.get()
+            print("send command received, sending "+command)
+            with self.socketLock:
+                self.clientsocket.send(command)
+                self.mailbox.task_done()
+            time.sleep(0.01)
 
 class ClientThread(threading.Thread):
-
-    def __init__(self,ip, port, clientsocket, map, users, maplock, userlock):
+    def __init__(self,ip, port, clientsocket, map, users, maplock, userlock, broadCastQueue):
         threading.Thread.__init__(self)
+        self.senderActive = True
         self.maplock = maplock
         self.alias = ""
         self.userlock = userlock
         self.map = map
         self.users = users
         self.ip = ip
+        self.mailbox = Queue.Queue()
+        self.socketLock = threading.Lock()
         self.port = port
+        self.sendThread = SendThread(clientsocket,self.socketLock, self.senderActive, self.mailbox)
         self.csocket = clientsocket
         self.state = "AUTHORIZATION"
         self.active = True
-        self.commands = {'CONNECT': self.connect, 'QUIT': self.quit, 'ADD': self.add}
+        self.commands = {'CONNECT': self.connect, 'QUIT': self.quit, 'ADD': self.add,
+                         'ASKTRANSFER': self.asktransfer, 'PAUSE': self.pause, 'RUN': self.run,
+                         'NAME': self.name, 'UP': self.up, 'DOWN': self.down, 'LEFT':self.left,
+                         'RIGHT': self.right}
         self.position = ()
+        self.broadcastQueue = broadCastQueue
         print "[+] New thread started for "+ip+":"+str(port)
 
     def run(self):
+        self.sendThread.start()
         while self.active:
-            data = self.csocket.recv(2048)
-            print "Client(%s:%s) sent : %s"%(self.ip, str(self.port), data)
-            self.csocket.send(self.interprete(data))
+            with self.socketLock:
+                data = self.csocket.recv(2048)
+                print "Client(%s:%s) sent : %s"%(self.ip, str(self.port), data)
+                self.mailbox.put(self.interprete(data))
+            time.sleep(0.01)
 
         print "Client at "+self.ip+" disconnected..."
-    #tests
+
     # functions
     def connect(self, alias):
         """
@@ -46,10 +98,11 @@ class ClientThread(threading.Thread):
                     if alias in users:
                         return "450 username Alias already in use. Please try another alias."
                 #it doesnt so put it into the list with the information and confirm connection:
-                    users[alias] = {"ip":self.ip,"port": self.port, "ressources":[]}
+                    users[alias] = {"ip":self.ip,"port": self.port, "ressources":[], "mailbox":self.mailbox}
                     print (users)
                 self.alias = alias
                 self.state = "TRANSACTION"
+                #create a thread with a queue and add the queue for all threads visible to the users
                 return "200 " + json.dumps(self.map)
 
             else:
@@ -76,6 +129,8 @@ class ClientThread(threading.Thread):
                         #2 modifying its own coords
                         self.position = pos
                         print(self.map)
+                        # issue map modified sequence for all threads
+                        self.broadcastQueue.put("update")
                         return "210 robot is added"
                     else:
                         return "430 The coordinate is not free"
@@ -110,6 +165,33 @@ class ClientThread(threading.Thread):
             return self.commands[cmd_list[0]]()+"\r\n"
         else:
             return "480 Invalid Command\r\n"
+
+    def asktransfer(self, username):
+        return "400 Not implemented yet"
+
+    def pause(self):
+        return "400 Not implemented yet"
+
+    def run(self):
+        return "400 Not implemented yet"
+
+    def name(self, name):
+        return "400 Not implemented yet"
+
+    def info(self):
+        return "400 Not implemented yet"
+
+    def up(self):
+        return "400 Not implemented yet"
+
+    def down(self):
+        return "400 Not implemented yet"
+
+    def right(self):
+        return "400 Not implemented yet"
+
+    def left(self):
+        return "400 Not implemented yet"
 
 def createMap(size, blockingElements, ressources):
     """
@@ -152,6 +234,9 @@ if __name__ == '__main__':
     map = createMap(10, 0.1, 0.2)
     maplock = threading.Lock()
     userlock = threading.Lock()
+    broadcasting = True
+    broadcastMailbox = Queue.Queue()
+    broadcastthread = BroadCastThread(users, userlock, broadcasting, broadcastMailbox, map, maplock)
 
     if (len(sys.argv) < 2):
         print("specify a port s'il vous plait")
@@ -163,6 +248,7 @@ if __name__ == '__main__':
     port = int(sys.argv[1])
     tcpsock.bind((host,port))
     try:
+        broadcastthread.start()
         while True:
             try:
                 tcpsock.listen(4)
@@ -170,7 +256,7 @@ if __name__ == '__main__':
                 (clientsock, (ip, port)) = tcpsock.accept()
                 print ("accepted client.")
                 #pass clientsock to the ClientThread thread object being created
-                newthread = ClientThread(ip, port, clientsock, map, users, maplock, userlock)
+                newthread = ClientThread(ip, port, clientsock, map, users, maplock, userlock, broadcastMailbox)
                 newthread.start()
                 threads.append(newthread)
             except KeyboardInterrupt:
