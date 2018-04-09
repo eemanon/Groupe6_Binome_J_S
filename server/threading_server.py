@@ -14,13 +14,17 @@ class BroadCastThread(threading.Thread):
         self.maplock = maplock
 
     def run(self):
-        while self.active:
-            msg = self.broadCastQueue.get()
-            output = self.interprete(msg)
-            print("sending to everyone the map...")
-            with self.userlock:
-                for user, userprops in self.users.items():
-                    userprops["mailbox"].put(output)
+        print("started broadcast Thread")
+        while not self.active.is_set():
+            if not self.broadCastQueue.empty():
+                msg = self.broadCastQueue.get(False)
+                output = self.interprete(msg)
+                print("sending to everyone the map...")
+                with self.userlock:
+                    for user, userprops in self.users.items():
+                        userprops["mailbox"].put(output)
+            time.sleep(0.01)
+        print("Broadcast Thread Closed")
     def interprete(self, msg):
         if msg == "update":
             with self.maplock:
@@ -28,57 +32,65 @@ class BroadCastThread(threading.Thread):
 
 class SendThread(threading.Thread):
 
-    def __init__(self, clientsocket, socketLock, active, queue):
+    def __init__(self, clientsocket, socketLock, queue, event):
         threading.Thread.__init__(self)
         self.socketLock = socketLock
         self.clientsocket = clientsocket
-        self.active = active            #thread safe because atomic :)
+        self.active = event            #thread safe because atomic :)
         self.mailbox = queue
 
     def run(self):
-        while self.active:
-            command = self.mailbox.get()
-            print("send command received, sending "+command)
-            with self.socketLock:
-                self.clientsocket.send(command)
-                self.mailbox.task_done()
+        print("started Sender Thread")
+        while not self.active.is_set():
+            if not self.mailbox.empty():
+                command = self.mailbox.get(False)
+                print("send command received, sending "+command)
+                with self.socketLock:
+                    self.clientsocket.send(command)
+                    self.mailbox.task_done()
             time.sleep(0.01)
+        print("SenderThread closed")
 
-class ClientThread(threading.Thread):
-    def __init__(self,ip, port, clientsocket, map, users, maplock, userlock, broadCastQueue):
+class SocketThread(threading.Thread):
+    def __init__(self,ip, port, clientsocket, map, users, maplock, userlock, broadCastQueue, activated):
         threading.Thread.__init__(self)
-        self.senderActive = True
+        self.senderActive = threading.Event()
         self.maplock = maplock
         self.alias = ""
         self.userlock = userlock
         self.map = map
         self.users = users
         self.ip = ip
+        self.paused = False
         self.mailbox = Queue.Queue()
         self.socketLock = threading.Lock()
         self.port = port
-        self.sendThread = SendThread(clientsocket,self.socketLock, self.senderActive, self.mailbox)
+        self.sendThread = SendThread(clientsocket,self.socketLock, self.mailbox, self.senderActive)
         self.csocket = clientsocket
         self.state = "AUTHORIZATION"
-        self.active = True
+        self.act = activated
         self.commands = {'CONNECT': self.connect, 'QUIT': self.quit, 'ADD': self.add,
-                         'ASKTRANSFER': self.asktransfer, 'PAUSE': self.pause, 'RUN': self.run,
-                         'NAME': self.name, 'UP': self.up, 'DOWN': self.down, 'LEFT':self.left,
-                         'RIGHT': self.right}
+                         'ASKTRANSFER': self.asktransfer, 'PAUSE': self.pause, 'RUN': self.unpause,
+                         'NAME': self.newalias, 'UP': self.up, 'DOWN': self.down, 'LEFT':self.left,
+                         'RIGHT': self.right, 'INFO': self.info}
         self.position = ()
         self.broadcastQueue = broadCastQueue
-        print "[+] New thread started for "+ip+":"+str(port)
+        print ("[+] New thread started on "+ip+":"+str(port))
 
     def run(self):
+        print("Socket Thread started")
         self.sendThread.start()
-        while self.active:
+        while not self.act.is_set():
             with self.socketLock:
                 data = self.csocket.recv(2048)
                 print "Client(%s:%s) sent : %s"%(self.ip, str(self.port), data)
                 self.mailbox.put(self.interprete(data))
             time.sleep(0.01)
-
-        print "Client at "+self.ip+" disconnected..."
+        self.senderActive.set()
+        print("waiting for senderthread...")
+        self.sendThread.join()
+        self.csocket.close()
+        print "SocketThread Closed"
 
     # functions
     def connect(self, alias):
@@ -147,8 +159,176 @@ class ClientThread(threading.Thread):
         if self.alias != "":
             with self.userlock:
                 del users[self.alias]
-        self.csocket.close()
         return "240 Successfully disconnected"
+
+    def asktransfer(self, username):
+        """
+        NOT YET FULLY IMPLEMENTED!
+        :param username:
+        :return:
+        """
+        if self.state == "TRANSACTION":
+            #check if user exists...
+            with self.userlock:
+                if username in users and username != self.alias:
+                    #send this user a request to allow user 1 to have its infos
+                    users[username]["mailbox"].put("110 Do you want to allow transfer from user "+self.alias)
+                    return "460 user not found"
+                else:
+                    return "460 user not found"
+        else:
+            return "480 Please connect before trying to pause."
+    def pause(self):
+        if self.state == "TRANSACTION":
+            with maplock:
+                #check if its in maps...
+                robot = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                print (robot)
+                if len(robot) == 1:
+                    self.paused = True
+                    return "250 ("+ str(robot[0]["x"]) +","+ str(robot[0]["y"]) +")"
+                else:
+                    return "480 Please add a robot to the map before trying to pause."
+        else:
+            return "480 Please connect before trying to pause."
+
+    def unpause(self):
+        if self.state == "TRANSACTION":
+            with maplock:
+                #check if its in maps...
+                robot = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                print (robot)
+                if len(robot) == 1:
+                    self.paused = False
+                    return "260"
+                else:
+                    return "480 Please add a robot to the map before trying to unpause."
+        else:
+            return "480 Please connect before trying to unpause."
+
+    def newalias(self, alias):
+        if self.state == "TRANSACTION":
+            validUsername = re.search("^[a-zA-Z0-9]{1,31}$", alias)
+            if validUsername:
+                with self.userlock:
+                    if alias in users:
+                        return "450 username Alias already in use. Please try another alias."
+                #it doesnt so exchange the current one
+                    #1 in users
+                    self.users[alias] = users[self.alias]
+                    del users[self.alias]
+                    #2 in map
+                with self.maplock:
+                    self.map["robots"] = [alias if x == self.alias else x for x in map["robots"]]
+                print (users)
+                self.alias = alias
+                return "200 "+self.alias
+            else:
+                return "440 invalid username"
+        else:
+            return "480 Please connect before trying to change your username."
+
+    def info(self):
+        print("info command")
+        if self.state == "TRANSACTION":
+            #get ressources and users
+            response = {"Ressources":[], "Users":[]}
+            with self.userlock:
+                    print (users[self.alias]["ressources"])
+                    print (users.keys())
+                    response["Ressources"] = users[self.alias]["ressources"]
+                    response["Users"] = users.keys()
+            return "200 "+json.dumps(response)
+        else:
+            return "480 Please connect before asking for user lists"
+
+    def up(self):
+        if self.state == "TRANSACTION":
+            with maplock:
+                #check if its in maps...
+                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                if len(robots) == 1:
+                    #valid movement ( boundaries, obstacles?)
+                    if self.validCoords((robots[0]["x"], robots[0]["y"]+1)):
+                        robots[0]["y"]=robots[0]["y"]+1
+                        # ressources found?
+                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                    else:
+                        return "430 Invalid Coordinates"
+                else:
+                    return "480 Please add a robot to the map before trying to move it."
+            print self.map
+            #update map message
+            self.broadcastQueue.put("update")
+            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+        else:
+            return "480 Please connect before trying to move a robot."
+
+    def down(self):
+        if self.state == "TRANSACTION":
+            with maplock:
+                #check if its in maps...
+                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                if len(robots) == 1:
+                    #valid movement ( boundaries, obstacles?)
+                    if self.validCoords((robots[0]["x"], robots[0]["y"]-1)):
+                        robots[0]["y"]=robots[0]["y"]-1
+                        # ressources found?
+                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                    else:
+                        return "430 Invalid Coordinates"
+                else:
+                    return "480 Please add a robot to the map before trying to move it."
+            print self.map
+            #update map message
+            self.broadcastQueue.put("update")
+            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+        else:
+            return "480 Please connect before trying to move a robot."
+
+    def right(self):
+        if self.state == "TRANSACTION":
+            with maplock:
+                #check if its in maps...
+                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                if len(robots) == 1:
+                    #valid movement ( boundaries, obstacles?)
+                    if self.validCoords((robots[0]["x"]+1, robots[0]["y"])):
+                        robots[0]["x"]=robots[0]["x"]+1
+                        # ressources found?
+                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                    else:
+                        return "430 Invalid Coordinates"
+                else:
+                    return "480 Please add a robot to the map before trying to move it."
+            print self.map
+            #update map message
+            self.broadcastQueue.put("update")
+            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+        else:
+            return "480 Please connect before trying to move a robot."
+
+    def left(self):
+        if self.state == "TRANSACTION":
+            with maplock:
+                #check if its in maps...
+                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                if len(robots) == 1:
+                    #valid movement ( boundaries, obstacles?)
+                    if self.validCoords((robots[0]["x"], robots[0]["y"]+1)):
+                        robots[0]["x"]=robots[0]["x"]-1
+                        # ressources found?
+                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                    else:
+                        return "430 Invalid Coordinates"
+                else:
+                    return "480 Please add a robot to the map before trying to move it."
+            print self.map
+            #update map message
+            self.broadcastQueue.put("update")
+            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+        else:
+            return "480 Please connect before trying to move a robot."
 
     def interprete(self, cmd):
         """
@@ -157,41 +337,52 @@ class ClientThread(threading.Thread):
         :param cmd: the string submitted
         :return: the server's response to the string submitted
         """
-        print ("interpreting command..")
+
         cmd_list = cmd.split()
+        #print ("interpreting command "+str(cmd_list[0]))
+        #try:
         if cmd_list[0] in self.commands and len(cmd_list)>1:
+            print ("length >1")
             return self.commands[cmd_list[0]](cmd_list[1])+"\r\n"
         elif cmd_list[0] in self.commands and len(cmd_list)==1:
+            print("length = 1")
             return self.commands[cmd_list[0]]()+"\r\n"
         else:
-            return "480 Invalid Command\r\n"
+            return "480 Inexisting Command\r\n"
+        #except:
+            #return "480 Malformed Command\r\n"
 
-    def asktransfer(self, username):
-        return "400 Not implemented yet"
+    def harvestRessources(self, coords):
+        """
+        ONLY TO BE CALLED WITH MAPLOCK ACQUIRED!
+        :coords param:
+        :return:
+        """
+        for element in self.map["ressources"]:
+            if element["x"]==coords[0] and element["y"]==coords[1]:
+                #there is a ressource on the spot! adding it to the users basket
+                print ("ressource found! harvesting...")
+                with userlock:
+                    print (self.users)
+                    self.users[self.alias]["ressources"].append(element["name"])
+                #remove it from map
+                del element
 
-    def pause(self):
-        return "400 Not implemented yet"
-
-    def run(self):
-        return "400 Not implemented yet"
-
-    def name(self, name):
-        return "400 Not implemented yet"
-
-    def info(self):
-        return "400 Not implemented yet"
-
-    def up(self):
-        return "400 Not implemented yet"
-
-    def down(self):
-        return "400 Not implemented yet"
-
-    def right(self):
-        return "400 Not implemented yet"
-
-    def left(self):
-        return "400 Not implemented yet"
+    def validCoords(self, coords):
+        """
+        ONLY TO BE CALLED WITH MAPLOCK ACQUIRED!
+        :param coords:
+        :return:
+        """
+        #out of boundaries?
+        if(coords[0]>=self.map["dimensions"][0] or coords[0]<0 or
+                   coords[1]>=self.map["dimensions"][1] or coords[1]<0):
+            return False
+        #obstacle?
+        for element in self.map["blockingElements"]:
+            if element["x"]==coords[0] and element["y"]==coords[1]:
+                return False
+        return True
 
 def createMap(size, blockingElements, ressources):
     """
@@ -234,35 +425,45 @@ if __name__ == '__main__':
     map = createMap(10, 0.1, 0.2)
     maplock = threading.Lock()
     userlock = threading.Lock()
-    broadcasting = True
     broadcastMailbox = Queue.Queue()
-    broadcastthread = BroadCastThread(users, userlock, broadcasting, broadcastMailbox, map, maplock)
+    broadcastActive = threading.Event()
+    broadcastthread = BroadCastThread(users, userlock, broadcastActive, broadcastMailbox, map, maplock)
 
     if (len(sys.argv) < 2):
         print("specify a port s'il vous plait")
         exit()
     threads = []
+    events = []
     tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     host ='localhost'
-    port = int(sys.argv[1])
-    tcpsock.bind((host,port))
+    listenport = int(sys.argv[1])
+    tcpsock.bind((host,listenport))
     try:
         broadcastthread.start()
         while True:
             try:
                 tcpsock.listen(4)
-                print "Listening for incoming connections on "+str(port)+"..."
+                print ("Listening for incoming connections on "+str(listenport)+"...")
                 (clientsock, (ip, port)) = tcpsock.accept()
                 print ("accepted client.")
                 #pass clientsock to the ClientThread thread object being created
-                newthread = ClientThread(ip, port, clientsock, map, users, maplock, userlock, broadcastMailbox)
+                ev = threading.Event()
+                newthread = SocketThread(ip, port, clientsock, map, users, maplock, userlock, broadcastMailbox, ev)
+                print ("starting thread...")
                 newthread.start()
+                print ("thread started...")
                 threads.append(newthread)
+                events.append(ev)
             except KeyboardInterrupt:
                 break
     finally:
+        for ev in events:
+            ev.set()
         for t in threads:
             t.join()
+        print("terminating broadcast thread...")
+        broadcastActive.set()
+        broadcastthread.join()
         tcpsock.close()
         print ("closed server")
