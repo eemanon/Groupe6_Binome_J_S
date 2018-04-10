@@ -2,9 +2,10 @@
 
 import socket, threading, sys, re, json, random, ast, time, Queue, datetime
 
-#Mailbox commands must be tuples: first is command, second argument/sendstring
-
 class LogThread(threading.Thread):
+    """
+    Logs connected users' commands into the file at the specified path.
+    """
     def __init__(self, active, logQueue, path):
         threading.Thread.__init__(self)
         self.active = active
@@ -12,6 +13,10 @@ class LogThread(threading.Thread):
         self.logpath = path
 
     def run(self):
+        """
+        Logs connected users' commands into the file at the specified path.
+        :return: None
+        """
         print("started Log Thread")
         with open(self.logpath + "spaceXlog.txt", "a") as f:
             print ("opened log file")
@@ -22,6 +27,10 @@ class LogThread(threading.Thread):
         print("LogThread Closed")
 
 class BroadCastThread(threading.Thread):
+    """
+    Broadcasts messages put into the broadCastQueue specified upon creation to all connected users
+    Ideal for map updates
+    """
     def __init__(self, users, userlock, active, broadCastQueue, map, maplock):
         threading.Thread.__init__(self)
         self.active = active
@@ -43,13 +52,11 @@ class BroadCastThread(threading.Thread):
                         userprops["mailbox"].put(output)
             time.sleep(0.01)
         print("Broadcast Thread Closed")
-    def interprete(self, msg):
-        if msg == "update":
-            with self.maplock:
-                return "100 " + json.dumps(self.map)+"\r\n"
 
 class SendThread(threading.Thread):
-
+    """
+    A thread dedicated to sending responses to issued commands or spontaneous messages
+    """
     def __init__(self, clientsocket, socketLock, queue, event):
         threading.Thread.__init__(self)
         self.socketLock = socketLock
@@ -70,6 +77,13 @@ class SendThread(threading.Thread):
         print("SenderThread closed")
 
 class SocketThread(threading.Thread):
+    """
+    Listens to client speciefied in clientsocket. Non blocking. Upon receival of a command, it is evaluated and put
+    into the logQueue passed as argument. Then,
+    the response is put into the its mailbox which is checked by the sender thread.
+    Starts one sender thread per connection.
+    The implemented commands are listed in the attribute "Commands"
+    """
     def __init__(self,ip, port, clientsocket, map, users, maplock, userlock, broadCastQueue, activated, logQueue):
         threading.Thread.__init__(self)
         self.senderActive = threading.Event()
@@ -95,8 +109,6 @@ class SocketThread(threading.Thread):
         self.position = ()
         self.broadcastQueue = broadCastQueue
         self.logQueue = logQueue
-
-        print ("[+] New thread started on "+ip+":"+str(port))
 
     def run(self):
         print("Socket Thread started")
@@ -152,6 +164,11 @@ class SocketThread(threading.Thread):
             return "480 Invalid Command"
 
     def add(self, coords):
+        """
+        Adds a robot as specified in RFC 4.1
+        :param coords: coordinates where to add the client's robot
+        :return: None
+        """
         if self.state == "TRANSACTION":
             pos = ()
             try:
@@ -183,19 +200,27 @@ class SocketThread(threading.Thread):
             return "480 Please connect before adding a robot."
 
     def quit(self):
+        """
+        disconnects the client by setting the stop Event of the thread and its sender. Then checks if
+        username set and removes it. Also removes the users robot, if there's any on the map.
+        When the thread exits its loop, the socket is closed.
+        :return:
+        """
         print ("Disconnecting "+str(self.port))
         self.senderActive.set()
         self.act.set()
         if self.alias != "":
             with self.userlock:
                 del users[self.alias]
+            with self.maplock:
+                del self.map["robots"][self.alias]
         return "240 Successfully disconnected"
 
     def asktransfer(self, username):
         """
-        NOT YET FULLY IMPLEMENTED!
-        :param username:
-        :return:
+        Checks if there's a user with the name provided and puts a request in the user's request list.
+        Then puts a message in the target user's mailbox and informs the user that the request is submitted.
+        :param username: target user's name to whom establish a connection
         """
         if self.state == "TRANSACTION":
             #check if user exists...
@@ -212,6 +237,9 @@ class SocketThread(threading.Thread):
             return "480 Please connect before trying to pause."
 
     def pause(self):
+        """
+        Pauses the robot as specified in RFC Section 4.3
+        """
         if self.state == "TRANSACTION":
             with maplock:
                 #check if its in maps...
@@ -226,11 +254,13 @@ class SocketThread(threading.Thread):
             return "480 Please connect before trying to pause."
 
     def unpause(self):
+        """
+        unpauses the robot as specified in RFC Section 4.4
+        """
         if self.state == "TRANSACTION":
             with maplock:
                 #check if its in maps...
                 robot = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
-                print (robot)
                 if len(robot) == 1:
                     self.paused = False
                     return "260"
@@ -240,6 +270,10 @@ class SocketThread(threading.Thread):
             return "480 Please connect before trying to unpause."
 
     def newalias(self, alias):
+        """
+        replaces the current username by a new one if not yet taken by another user
+        :param alias: the new user name
+        """
         if self.state == "TRANSACTION":
             validUsername = re.search("^[a-zA-Z0-9]{1,31}$", alias)
             if validUsername:
@@ -262,7 +296,9 @@ class SocketThread(threading.Thread):
             return "480 Please connect before trying to change your username."
 
     def info(self):
-        print("info command")
+        """
+        Returns the ressources of the user and a list of all users connected.
+        """
         if self.state == "TRANSACTION":
             #get ressources and users
             response = {"Ressources":[], "Users":[]}
@@ -392,6 +428,12 @@ class SocketThread(threading.Thread):
             #return "480 Malformed Command\r\n"
 
     def acceptrequest(self, user, port, protocol):
+        """
+        A subcommand of asktransfer with which the transfer request can be answered positively
+        :param user: the user having requested the transfer previously
+        :param port: the port which the sender will open for the transfer
+        :param protocol: the protocol for the transfer
+        """
         #check if there is a request from this user in the user's request list...
         with self.userlock:
             if user in users[self.alias]["requests"]:
@@ -403,6 +445,11 @@ class SocketThread(threading.Thread):
                 return "460 user not found in your requestlist."
     
     def refuserequest(self, user):
+        """
+        negative answer of a user to the asktransfer command issued by another user.
+        :param user: the user having issued the request
+        :return:
+        """
         with self.userlock:
             if user in users[self.alias]["requests"]:
             # if so, send refusal message
@@ -415,8 +462,8 @@ class SocketThread(threading.Thread):
     def harvestRessources(self, coords):
         """
         ONLY TO BE CALLED WITH MAPLOCK ACQUIRED!
-        :coords param:
-        :return:
+        :coords param: coordinates where ressources are harvested
+        :return: void
         """
         for element in self.map["ressources"]:
             if element["x"]==coords[0] and element["y"]==coords[1]:
@@ -431,8 +478,8 @@ class SocketThread(threading.Thread):
     def validCoords(self, coords):
         """
         ONLY TO BE CALLED WITH MAPLOCK ACQUIRED!
-        :param coords:
-        :return:
+        :param coords: checks these coordinates for blocking elements
+        :return: true if coordinate is not blocking, false otherwise
         """
         #out of boundaries?
         if(coords[0]>=self.map["dimensions"][0] or coords[0]<0 or
@@ -480,6 +527,13 @@ def createMap(size, blockingElements, ressources):
     return map
 
 def loadConfig():
+    """
+    loads a config file. Must be of this structure:
+    <property1> <value1>
+    <property2> <value2>
+    :return: a dictionnary of the file's content.
+    The following keys are set by default: port, path
+    """
     config = {"port": 9021, "path":""}
     with open("spaceX.conf", "r") as r:
         for line in r:
@@ -513,7 +567,7 @@ if __name__ == '__main__':
     host ='localhost'
 
     logQueue.put("\n"+str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
-                 "server started @ "+host+" port "+str(config["port"]))
+                 " server started @ "+host+" port "+str(config["port"]))
 
     threads = []
     events = []
@@ -552,7 +606,7 @@ if __name__ == '__main__':
             t.join()
 
         logQueue.put("\n" + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
-                     "server halted @ " + host + " port " + str(config["port"]))
+                     " server halted @ " + host + " port " + str(config["port"]))
 
         print("terminating broadcast thread...")
         broadcastActive.set()
