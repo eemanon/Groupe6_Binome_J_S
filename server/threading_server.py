@@ -2,6 +2,8 @@
 
 import socket, threading, sys, re, json, random, ast, time, Queue
 
+#Mailbox commands must be tuples: first is command, second argument/sendstring
+
 
 class BroadCastThread(threading.Thread):
     def __init__(self, users, userlock, active, broadCastQueue, map, maplock):
@@ -81,11 +83,15 @@ class SocketThread(threading.Thread):
         print("Socket Thread started")
         self.sendThread.start()
         while not self.act.is_set():
+            print ("listening")
             with self.socketLock:
-                data = self.csocket.recv(2048)
-                print "Client(%s:%s) sent : %s"%(self.ip, str(self.port), data)
-                self.mailbox.put(self.interprete(data))
-            time.sleep(0.01)
+                try:
+                    data = self.csocket.recv(2048)
+                    print "Client(%s:%s) sent : %s" % (self.ip, str(self.port), data)
+                    self.mailbox.put(self.interprete(data))
+                except:
+                    print ("no data :)")
+            time.sleep(0.1)
         self.senderActive.set()
         print("waiting for senderthread...")
         self.sendThread.join()
@@ -110,7 +116,7 @@ class SocketThread(threading.Thread):
                     if alias in users:
                         return "450 username Alias already in use. Please try another alias."
                 #it doesnt so put it into the list with the information and confirm connection:
-                    users[alias] = {"ip":self.ip,"port": self.port, "ressources":[], "mailbox":self.mailbox}
+                    users[alias] = {"ip":self.ip,"port": self.port, "ressources":[], "requests":[],"mailbox":self.mailbox}
                     print (users)
                 self.alias = alias
                 self.state = "TRANSACTION"
@@ -173,11 +179,14 @@ class SocketThread(threading.Thread):
                 if username in users and username != self.alias:
                     #send this user a request to allow user 1 to have its infos
                     users[username]["mailbox"].put("110 Do you want to allow transfer from user "+self.alias)
+                    #add request to users[username]["requests]
+                    users[username]["requests"].append(self.alias)
                     return "460 user not found"
                 else:
                     return "460 user not found"
         else:
             return "480 Please connect before trying to pause."
+
     def pause(self):
         if self.state == "TRANSACTION":
             with maplock:
@@ -352,6 +361,12 @@ class SocketThread(threading.Thread):
         #except:
             #return "480 Malformed Command\r\n"
 
+    def acceptrequest(self):
+        pass
+    
+    def refuserequest(self):
+        pass
+
     def harvestRessources(self, coords):
         """
         ONLY TO BE CALLED WITH MAPLOCK ACQUIRED!
@@ -436,6 +451,8 @@ if __name__ == '__main__':
     events = []
     tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    tcpsock.setblocking(False)
+    tcpsock.settimeout(60)
     host ='localhost'
     listenport = int(sys.argv[1])
     tcpsock.bind((host,listenport))
@@ -445,10 +462,13 @@ if __name__ == '__main__':
             try:
                 tcpsock.listen(4)
                 print ("Listening for incoming connections on "+str(listenport)+"...")
-                (clientsock, (ip, port)) = tcpsock.accept()
+
                 print ("accepted client.")
                 #pass clientsock to the ClientThread thread object being created
                 ev = threading.Event()
+                (clientsock, (ip, port)) = tcpsock.accept()
+                clientsock.settimeout(60)
+                clientsock.setblocking(0)
                 newthread = SocketThread(ip, port, clientsock, map, users, maplock, userlock, broadcastMailbox, ev)
                 print ("starting thread...")
                 newthread.start()
