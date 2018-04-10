@@ -1,25 +1,24 @@
 #!/usr/bin/env python
 
-import socket, threading, sys, re, json, random, ast, time, Queue
+import socket, threading, sys, re, json, random, ast, time, Queue, datetime
 
 #Mailbox commands must be tuples: first is command, second argument/sendstring
 
 class LogThread(threading.Thread):
-    def __init__(self, active, logQueue):
+    def __init__(self, active, logQueue, path):
         threading.Thread.__init__(self)
         self.active = active
         self.logQueue = logQueue
+        self.logpath = path
 
     def run(self):
         print("started Log Thread")
-        while not self.active.is_set():
-
-            if not self.logQueue.empty():
-                msg = self.broadCastQueue.get(False)
-                with self.userlock:
-                    for user, userprops in self.users.items():
-                        userprops["mailbox"].put(output)
-            time.sleep(0.01)
+        with open(self.logpath + "spaceXlog.txt", "a") as f:
+            print ("opened log file")
+            while not self.active.is_set():
+                if not self.logQueue.empty():
+                    msg = self.logQueue.get(False)
+                    f.write(msg)
         print("LogThread Closed")
 
 class BroadCastThread(threading.Thread):
@@ -71,7 +70,7 @@ class SendThread(threading.Thread):
         print("SenderThread closed")
 
 class SocketThread(threading.Thread):
-    def __init__(self,ip, port, clientsocket, map, users, maplock, userlock, broadCastQueue, activated):
+    def __init__(self,ip, port, clientsocket, map, users, maplock, userlock, broadCastQueue, activated, logQueue):
         threading.Thread.__init__(self)
         self.senderActive = threading.Event()
         self.maplock = maplock
@@ -95,16 +94,21 @@ class SocketThread(threading.Thread):
                          'REFUSEREQUEST': self.refuserequest}
         self.position = ()
         self.broadcastQueue = broadCastQueue
+        self.logQueue = logQueue
+
         print ("[+] New thread started on "+ip+":"+str(port))
 
     def run(self):
         print("Socket Thread started")
+        self.logQueue.put(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
+                          "[" + self.ip + ", " + str(self.port) + "]: Connected")
         self.sendThread.start()
         while not self.act.is_set():
             with self.socketLock:
                 try:
                     data = self.csocket.recv(2048)
-                    print "Client(%s:%s) sent : %s" % (self.ip, str(self.port), data)
+                    self.logQueue.put(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
+                                      "["+self.ip+", "+str(self.port)+"]: "+data.decode())
                     self.mailbox.put(self.interprete(data))
                 except:
                     pass
@@ -114,6 +118,8 @@ class SocketThread(threading.Thread):
         self.sendThread.join()
         self.csocket.close()
         print "SocketThread Closed"
+        self.logQueue.put(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
+                          "[" + self.ip + ", " + str(self.port) + "]: Disconnected")
 
     # functions
     def connect(self, alias):
@@ -395,11 +401,16 @@ class SocketThread(threading.Thread):
             else:
                 # else send no user found
                 return "460 user not found in your requestlist."
-
-
     
     def refuserequest(self, user):
-        pass
+        with self.userlock:
+            if user in users[self.alias]["requests"]:
+            # if so, send refusal message
+                users[user]["mailbox"].put("470 Connection refused by "+user+"\r\n")
+                return "200 answer submitted"
+            else:
+                # else send no user found
+                return "460 user not found in your requestlist."
 
     def harvestRessources(self, coords):
         """
@@ -468,40 +479,64 @@ def createMap(size, blockingElements, ressources):
     print ("Map Creation Finished")
     return map
 
+def loadConfig():
+    config = {"port": 9021, "path":""}
+    with open("spaceX.conf", "r") as r:
+        for line in r:
+            conf = line.split()
+            config[conf[0]] = conf[1]
+    if (len(sys.argv) >= 2):
+        config["port"] = int(sys.argv[1])
+    return config
+
 if __name__ == '__main__':
-    #deux ressources globales: Carte et Liste d'utilisateurs
+
+    #1 Load Configuration
+    config = loadConfig()
+    #2 Define Global Ressources
     users = {}
     map = createMap(10, 0.1, 0.2)
     maplock = threading.Lock()
     userlock = threading.Lock()
+
+    #3 Define broadcasting mechanism for messages to all connected clients
     broadcastMailbox = Queue.Queue()
     broadcastActive = threading.Event()
     broadcastthread = BroadCastThread(users, userlock, broadcastActive, broadcastMailbox, map, maplock)
 
-    if (len(sys.argv) < 2):
-        print("specify a port s'il vous plait")
-        exit()
+    #4 Define Logging mechanism to keep track of clients' commands.
+    logQueue = Queue.Queue()
+    logActive = threading.Event()
+    logthread = LogThread(logActive,logQueue,config["path"])
+    logthread.start()
+
+    host ='localhost'
+
+    logQueue.put("\n"+str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
+                 "server started @ "+host+" port "+str(config["port"]))
+
     threads = []
     events = []
     tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    host ='localhost'
-    listenport = int(sys.argv[1])
-    tcpsock.bind((host,listenport))
+
+
+    tcpsock.bind((host,config["port"]))
     try:
         broadcastthread.start()
+        print ("Listening for incoming connections on " + str(config["port"]) + "...")
+
         while True:
             try:
                 tcpsock.listen(4)
-                print ("Listening for incoming connections on "+str(listenport)+"...")
-
-                print ("accepted client.")
                 #pass clientsock to the ClientThread thread object being created
-                ev = threading.Event()
                 (clientsock, (ip, port)) = tcpsock.accept()
+                print ("accepted client.")
                 clientsock.settimeout(60)
                 clientsock.setblocking(0)
-                newthread = SocketThread(ip, port, clientsock, map, users, maplock, userlock, broadcastMailbox, ev)
+                ev = threading.Event()
+                newthread = SocketThread(ip, port, clientsock, map, users, maplock,
+                                         userlock, broadcastMailbox, ev, logQueue)
                 print ("starting thread...")
                 newthread.start()
                 print ("thread started...")
@@ -510,12 +545,20 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 break
     finally:
+
         for ev in events:
             ev.set()
         for t in threads:
             t.join()
+
+        logQueue.put("\n" + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
+                     "server halted @ " + host + " port " + str(config["port"]))
+
         print("terminating broadcast thread...")
         broadcastActive.set()
         broadcastthread.join()
+        print("terminating log thread...")
+        logActive.set()
+        logthread.join()
         tcpsock.close()
         print ("closed server")
