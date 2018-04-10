@@ -4,6 +4,23 @@ import socket, threading, sys, re, json, random, ast, time, Queue
 
 #Mailbox commands must be tuples: first is command, second argument/sendstring
 
+class LogThread(threading.Thread):
+    def __init__(self, active, logQueue):
+        threading.Thread.__init__(self)
+        self.active = active
+        self.logQueue = logQueue
+
+    def run(self):
+        print("started Log Thread")
+        while not self.active.is_set():
+
+            if not self.logQueue.empty():
+                msg = self.broadCastQueue.get(False)
+                with self.userlock:
+                    for user, userprops in self.users.items():
+                        userprops["mailbox"].put(output)
+            time.sleep(0.01)
+        print("LogThread Closed")
 
 class BroadCastThread(threading.Thread):
     def __init__(self, users, userlock, active, broadCastQueue, map, maplock):
@@ -48,7 +65,7 @@ class SendThread(threading.Thread):
                 command = self.mailbox.get(False)
                 print("send command received, sending "+command)
                 with self.socketLock:
-                    self.clientsocket.send(command)
+                    self.clientsocket.send(command.encode())
                     self.mailbox.task_done()
             time.sleep(0.01)
         print("SenderThread closed")
@@ -74,7 +91,8 @@ class SocketThread(threading.Thread):
         self.commands = {'CONNECT': self.connect, 'QUIT': self.quit, 'ADD': self.add,
                          'ASKTRANSFER': self.asktransfer, 'PAUSE': self.pause, 'RUN': self.unpause,
                          'NAME': self.newalias, 'UP': self.up, 'DOWN': self.down, 'LEFT':self.left,
-                         'RIGHT': self.right, 'INFO': self.info}
+                         'RIGHT': self.right, 'INFO': self.info, 'ACCEPTREQUEST': self.acceptrequest,
+                         'REFUSEREQUEST': self.refuserequest}
         self.position = ()
         self.broadcastQueue = broadCastQueue
         print ("[+] New thread started on "+ip+":"+str(port))
@@ -83,14 +101,13 @@ class SocketThread(threading.Thread):
         print("Socket Thread started")
         self.sendThread.start()
         while not self.act.is_set():
-            print ("listening")
             with self.socketLock:
                 try:
                     data = self.csocket.recv(2048)
                     print "Client(%s:%s) sent : %s" % (self.ip, str(self.port), data)
                     self.mailbox.put(self.interprete(data))
                 except:
-                    print ("no data :)")
+                    pass
             time.sleep(0.1)
         self.senderActive.set()
         print("waiting for senderthread...")
@@ -161,7 +178,8 @@ class SocketThread(threading.Thread):
 
     def quit(self):
         print ("Disconnecting "+str(self.port))
-        self.active = False
+        self.senderActive.set()
+        self.act.set()
         if self.alias != "":
             with self.userlock:
                 del users[self.alias]
@@ -178,10 +196,10 @@ class SocketThread(threading.Thread):
             with self.userlock:
                 if username in users and username != self.alias:
                     #send this user a request to allow user 1 to have its infos
-                    users[username]["mailbox"].put("110 Do you want to allow transfer from user "+self.alias)
+                    users[username]["mailbox"].put("110 Do you want to allow transfer from user "+self.alias+"\r\n")
                     #add request to users[username]["requests]
                     users[username]["requests"].append(self.alias)
-                    return "460 user not found"
+                    return "280 request submitted, waiting for approval or refusal"
                 else:
                     return "460 user not found"
         else:
@@ -350,9 +368,15 @@ class SocketThread(threading.Thread):
         cmd_list = cmd.split()
         #print ("interpreting command "+str(cmd_list[0]))
         #try:
-        if cmd_list[0] in self.commands and len(cmd_list)>1:
-            print ("length >1")
+        if cmd_list[0] in self.commands and len(cmd_list)==2:
+            print ("length =2")
             return self.commands[cmd_list[0]](cmd_list[1])+"\r\n"
+        elif cmd_list[0] in self.commands and len(cmd_list)==3:
+            print ("length =3")
+            return self.commands[cmd_list[0]](cmd_list[1],cmd_list[2])+"\r\n"
+        elif cmd_list[0] in self.commands and len(cmd_list)==4:
+            print ("length =4")
+            return self.commands[cmd_list[0]](cmd_list[1],cmd_list[2], cmd_list[3])+"\r\n"
         elif cmd_list[0] in self.commands and len(cmd_list)==1:
             print("length = 1")
             return self.commands[cmd_list[0]]()+"\r\n"
@@ -361,10 +385,20 @@ class SocketThread(threading.Thread):
         #except:
             #return "480 Malformed Command\r\n"
 
-    def acceptrequest(self):
-        pass
+    def acceptrequest(self, user, port, protocol):
+        #check if there is a request from this user in the user's request list...
+        with self.userlock:
+            if user in users[self.alias]["requests"]:
+            # if so, send data of user to requesting user's mailbox
+                users[user]["mailbox"].put("230 "+users[user]["ip"]+" "+port+" "+protocol)
+                return "200 answer submitted"
+            else:
+                # else send no user found
+                return "460 user not found in your requestlist."
+
+
     
-    def refuserequest(self):
+    def refuserequest(self, user):
         pass
 
     def harvestRessources(self, coords):
@@ -451,8 +485,6 @@ if __name__ == '__main__':
     events = []
     tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    tcpsock.setblocking(False)
-    tcpsock.settimeout(60)
     host ='localhost'
     listenport = int(sys.argv[1])
     tcpsock.bind((host,listenport))
