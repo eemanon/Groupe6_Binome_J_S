@@ -53,6 +53,11 @@ class BroadCastThread(threading.Thread):
             time.sleep(0.01)
         print("Broadcast Thread Closed")
 
+    def interprete(self, msg):
+        if msg == "update":
+            with self.maplock:
+                return "100 " + json.dumps(self.map) + "\r\n"
+
 class SendThread(threading.Thread):
     """
     A thread dedicated to sending responses to issued commands or spontaneous messages
@@ -312,92 +317,103 @@ class SocketThread(threading.Thread):
             return "480 Please connect before asking for user lists"
 
     def up(self):
-        if self.state == "TRANSACTION":
-            with maplock:
-                #check if its in maps...
-                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
-                if len(robots) == 1:
-                    #valid movement ( boundaries, obstacles?)
-                    if self.validCoords((robots[0]["x"], robots[0]["y"]+1)):
-                        robots[0]["y"]=robots[0]["y"]+1
-                        # ressources found?
-                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+        if not self.paused:
+            if self.state == "TRANSACTION":
+                with maplock:
+                    #check if its in maps...
+                    robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                    if len(robots) == 1:
+                        #valid movement ( boundaries, obstacles?)
+                        if self.validCoords((robots[0]["x"], robots[0]["y"]+1)):
+                            robots[0]["y"]=robots[0]["y"]+1
+                            # ressources found?
+                            self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                        else:
+                            return "430 Invalid Coordinates"
                     else:
-                        return "430 Invalid Coordinates"
-                else:
-                    return "480 Please add a robot to the map before trying to move it."
-            print self.map
-            #update map message
-            self.broadcastQueue.put("update")
-            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+                        return "480 Please add a robot to the map before trying to move it."
+                print self.map
+                #update map message
+                self.broadcastQueue.put("update")
+                return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+            else:
+                return "480 Please connect before trying to move a robot."
         else:
-            return "480 Please connect before trying to move a robot."
-
+            return "430 Robot paused"
     def down(self):
-        if self.state == "TRANSACTION":
-            with maplock:
-                #check if its in maps...
-                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
-                if len(robots) == 1:
-                    #valid movement ( boundaries, obstacles?)
-                    if self.validCoords((robots[0]["x"], robots[0]["y"]-1)):
-                        robots[0]["y"]=robots[0]["y"]-1
-                        # ressources found?
-                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
-                    else:
-                        return "430 Invalid Coordinates"
+        if not self.paused:
+                if self.state == "TRANSACTION":
+                    with maplock:
+                        # check if its in maps...
+                        robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                        if len(robots) == 1:
+                            # valid movement ( boundaries, obstacles?)
+                            if self.validCoords((robots[0]["x"], robots[0]["y"] - 1)):
+                                robots[0]["y"] = robots[0]["y"] - 1
+                                # ressources found?
+                                self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                            else:
+                                return "430 Invalid Coordinates"
+                        else:
+                            return "480 Please add a robot to the map before trying to move it."
+                    print self.map
+                    # update map message
+                    self.broadcastQueue.put("update")
+                    return "270 (" + str(robots[0]["x"]) + "," + str(robots[0]["y"]) + ")"
                 else:
-                    return "480 Please add a robot to the map before trying to move it."
-            print self.map
-            #update map message
-            self.broadcastQueue.put("update")
-            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+                    return "480 Please connect before trying to move a robot."
         else:
-            return "480 Please connect before trying to move a robot."
+            return "430 Robot paused"
 
     def right(self):
-        if self.state == "TRANSACTION":
-            with maplock:
-                #check if its in maps...
-                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
-                if len(robots) == 1:
-                    #valid movement ( boundaries, obstacles?)
-                    if self.validCoords((robots[0]["x"]+1, robots[0]["y"])):
-                        robots[0]["x"]=robots[0]["x"]+1
-                        # ressources found?
-                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+        if not self.paused:
+            if self.state == "TRANSACTION":
+                with maplock:
+                    #check if its in maps...
+                    robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                    if len(robots) == 1:
+                        #valid movement ( boundaries, obstacles?)
+                        if self.validCoords((robots[0]["x"]+1, robots[0]["y"])):
+                            robots[0]["x"]=robots[0]["x"]+1
+                            # ressources found?
+                            self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                        else:
+                            return "430 Invalid Coordinates"
                     else:
-                        return "430 Invalid Coordinates"
-                else:
-                    return "480 Please add a robot to the map before trying to move it."
-            print self.map
-            #update map message
-            self.broadcastQueue.put("update")
-            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+                        return "480 Please add a robot to the map before trying to move it."
+                print self.map
+                #update map message
+                self.broadcastQueue.put("update")
+                return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+            else:
+                return "480 Please connect before trying to move a robot."
         else:
-            return "480 Please connect before trying to move a robot."
+            return "430 Robot paused"
 
     def left(self):
-        if self.state == "TRANSACTION":
-            with maplock:
-                #check if its in maps...
-                robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
-                if len(robots) == 1:
-                    #valid movement ( boundaries, obstacles?)
-                    if self.validCoords((robots[0]["x"], robots[0]["y"]+1)):
-                        robots[0]["x"]=robots[0]["x"]-1
-                        # ressources found?
-                        self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+        if not self.paused:
+            if self.state == "TRANSACTION":
+                with maplock:
+                    #check if its in maps...
+                    robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                    if len(robots) == 1:
+                        #valid movement ( boundaries, obstacles?)
+                        if self.validCoords((robots[0]["x"], robots[0]["y"]+1)):
+                            robots[0]["x"]=robots[0]["x"]-1
+                            # ressources found?
+                            self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                        else:
+                            return "430 Invalid Coordinates"
                     else:
-                        return "430 Invalid Coordinates"
-                else:
-                    return "480 Please add a robot to the map before trying to move it."
-            print self.map
-            #update map message
-            self.broadcastQueue.put("update")
-            return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+                        return "480 Please add a robot to the map before trying to move it."
+                print self.map
+                #update map message
+                self.broadcastQueue.put("update")
+                return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
+            else:
+                return "480 Please connect before trying to move a robot."
         else:
-            return "480 Please connect before trying to move a robot."
+            return "430 Robot paused"
 
     def interprete(self, cmd):
         """
