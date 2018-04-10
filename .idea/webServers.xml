@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="9441e3f6-7d4c-4761-8a1e-9b24ad5bd7a5" name="mass-cara" url="http://mass-cara2.univ-tlse2.fr">
+        <fileTransfer host="mass-cara2.univ-tlse2.fr" port="22" rootFolder="/MATHINFO/sebastian-andreas.si/pytaing/reseau/projet" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
