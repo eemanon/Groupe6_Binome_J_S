@@ -454,7 +454,9 @@ class SocketThread(threading.Thread):
         with self.userlock:
             if user in users[self.alias]["requests"]:
             # if so, send data of user to requesting user's mailbox
-                users[user]["mailbox"].put("230 "+users[user]["ip"]+" "+port+" "+protocol)
+                users[user]["mailbox"].put("230 "+users[user]["ip"]+" "+port+" "+protocol+"\r\n")
+            #remove request from users requet list
+                del users[self.alias]["requests"][user]
                 return "200 answer submitted"
             else:
                 # else send no user found
@@ -470,6 +472,7 @@ class SocketThread(threading.Thread):
             if user in users[self.alias]["requests"]:
             # if so, send refusal message
                 users[user]["mailbox"].put("470 Connection refused by "+user+"\r\n")
+                del users[self.alias]["requests"][user]
                 return "200 answer submitted"
             else:
                 # else send no user found
