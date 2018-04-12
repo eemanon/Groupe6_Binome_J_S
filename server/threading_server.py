@@ -559,7 +559,7 @@ def loadConfig():
             conf = line.split()
             config[conf[0]] = conf[1]
     if (len(sys.argv) >= 2):
-        config["port"] = int(sys.argv[1])
+        config["port"] = sys.argv[1]
     return config
 
 if __name__ == '__main__':
@@ -594,7 +594,7 @@ if __name__ == '__main__':
     tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 
-    tcpsock.bind((host,config["port"]))
+    tcpsock.bind((host,int(config["port"])))
     try:
         broadcastthread.start()
         print ("Listening for incoming connections on " + str(config["port"]) + "...")
