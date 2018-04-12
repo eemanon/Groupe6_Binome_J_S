@@ -218,7 +218,12 @@ class SocketThread(threading.Thread):
             with self.userlock:
                 del users[self.alias]
             with self.maplock:
-                del self.map["robots"][self.alias]
+                for robot in self.map["robots"]:
+                    if robot["name"] == self.alias:
+                        print ("found robot to remove")
+                        self.map["robots"].remove(robot)
+                        self.broadcastQueue.put("update")
+                        break
         return "240 Successfully disconnected"
 
     def asktransfer(self, username):
@@ -284,15 +289,16 @@ class SocketThread(threading.Thread):
             if validUsername:
                 with self.userlock:
                     if alias in users:
-                        return "450 username Alias already in use. Please try another alias."
+                        return "450 username already in use. Please try another alias."
                 #it doesnt so exchange the current one
                     #1 in users
                     self.users[alias] = users[self.alias]
                     del users[self.alias]
                     #2 in map
                 with self.maplock:
-                    self.map["robots"] = [alias if x == self.alias else x for x in map["robots"]]
-                print (users)
+                    for x in self.map["robots"]:
+                        if x["name"]==self.alias:
+                            x["name"] = alias
                 self.alias = alias
                 return "200 "+self.alias
             else:
@@ -340,6 +346,7 @@ class SocketThread(threading.Thread):
                 return "480 Please connect before trying to move a robot."
         else:
             return "430 Robot paused"
+
     def down(self):
         if not self.paused:
                 if self.state == "TRANSACTION":
