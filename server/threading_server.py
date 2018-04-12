@@ -138,7 +138,7 @@ class SocketThread(threading.Thread):
         self.logQueue.put(str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
                           "[" + self.ip + ", " + str(self.port) + "]: Disconnected")
 
-    # functions
+    # functions for command evaluation
     def connect(self, alias):
         """
         checks if username issued is valid and if so adds user to connected user's list,
@@ -485,6 +485,7 @@ class SocketThread(threading.Thread):
                 # else send no user found
                 return "460 user not found in your requestlist."
 
+    #helper functions
     def harvestRessources(self, coords):
         """
         ONLY TO BE CALLED WITH MAPLOCK ACQUIRED!
@@ -573,72 +574,84 @@ if __name__ == '__main__':
 
     #1 Load Configuration
     config = loadConfig()
+
     #2 Define Global Ressources
     users = {}
-    map = createMap(10, 0.1, 0.2)
-    maplock = threading.Lock()
-    userlock = threading.Lock()
 
-    #3 Define broadcasting mechanism for messages to all connected clients
-    broadcastMailbox = Queue.Queue()
-    broadcastActive = threading.Event()
-    broadcastthread = BroadCastThread(users, userlock, broadcastActive, broadcastMailbox, map, maplock)
-
-    #4 Define Logging mechanism to keep track of clients' commands.
-    logQueue = Queue.Queue()
-    logActive = threading.Event()
-    logthread = LogThread(logActive,logQueue,config["path"])
-    logthread.start()
-
-    host ='localhost'
-
-    logQueue.put("\n"+str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
-                 " server started @ "+host+" port "+str(config["port"]))
-
-    threads = []
-    events = []
-    tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-
-    tcpsock.bind((host,int(config["port"])))
+    #3 Create Map
+    mapsize = 10
+    rd = 0.1
+    bd = 0.2
     try:
-        broadcastthread.start()
-        print ("Listening for incoming connections on " + str(config["port"]) + "...")
-
-        while True:
-            try:
-                tcpsock.listen(4)
-                #pass clientsock to the ClientThread thread object being created
-                (clientsock, (ip, port)) = tcpsock.accept()
-                print ("accepted client.")
-                clientsock.settimeout(60)
-                clientsock.setblocking(0)
-                ev = threading.Event()
-                newthread = SocketThread(ip, port, clientsock, map, users, maplock,
-                                         userlock, broadcastMailbox, ev, logQueue)
-                print ("starting thread...")
-                newthread.start()
-                print ("thread started...")
-                threads.append(newthread)
-                events.append(ev)
-            except KeyboardInterrupt:
-                break
+        if "size" in config:
+            mapsize = int(config["size"])
+        if "ressourcedensity" in config:
+            rd = float(config["ressourcedensity"])
+        if "blockdensity" in config:
+            bd = float(config["blockdensity"])
     finally:
+        map = createMap(mapsize,bd, rd)
+        maplock = threading.Lock()
+        userlock = threading.Lock()
 
-        for ev in events:
-            ev.set()
-        for t in threads:
-            t.join()
+        #4 Define broadcasting mechanism for messages to all connected clients
+        broadcastMailbox = Queue.Queue()
+        broadcastActive = threading.Event()
+        broadcastthread = BroadCastThread(users, userlock, broadcastActive, broadcastMailbox, map, maplock)
 
-        logQueue.put("\n" + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
-                     " server halted @ " + host + " port " + str(config["port"]))
+        #5 Define Logging mechanism to keep track of clients' commands.
+        logQueue = Queue.Queue()
+        logActive = threading.Event()
+        logthread = LogThread(logActive,logQueue,config["path"])
+        logthread.start()
 
-        print("terminating broadcast thread...")
-        broadcastActive.set()
-        broadcastthread.join()
-        print("terminating log thread...")
-        logActive.set()
-        logthread.join()
-        tcpsock.close()
-        print ("closed server")
+        host ='localhost'
+
+        logQueue.put("\n"+str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
+                     " server started @ "+host+" port "+str(config["port"]))
+
+        threads = []
+        events = []
+        tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        tcpsock.bind((host,int(config["port"])))
+        try:
+            broadcastthread.start()
+            print ("Listening for incoming connections on " + str(config["port"]) + "...")
+
+            while True:
+                try:
+                    tcpsock.listen(4)
+                    #pass clientsock to the ClientThread thread object being created
+                    (clientsock, (ip, port)) = tcpsock.accept()
+                    print ("accepted client.")
+                    clientsock.settimeout(60)
+                    clientsock.setblocking(0)
+                    ev = threading.Event()
+                    newthread = SocketThread(ip, port, clientsock, map, users, maplock,
+                                             userlock, broadcastMailbox, ev, logQueue)
+                    print ("starting thread...")
+                    newthread.start()
+                    print ("thread started...")
+                    threads.append(newthread)
+                    events.append(ev)
+                except KeyboardInterrupt:
+                    break
+        finally:
+
+            for ev in events:
+                ev.set()
+            for t in threads:
+                t.join()
+
+            logQueue.put("\n" + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) +
+                         " server halted @ " + host + " port " + str(config["port"]))
+
+            print("terminating broadcast thread...")
+            broadcastActive.set()
+            broadcastthread.join()
+            print("terminating log thread...")
+            logActive.set()
+            logthread.join()
+            tcpsock.close()
+            print ("closed server")
