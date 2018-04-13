@@ -405,7 +405,7 @@ class SocketThread(threading.Thread):
                     robots = (filter(lambda element: element["name"] == self.alias, self.map["robots"]))
                     if len(robots) == 1:
                         #valid movement ( boundaries, obstacles?)
-                        if self.validCoords((robots[0]["x"], robots[0]["y"]+1)):
+                        if self.validCoords((robots[0]["x"]-1, robots[0]["y"])):
                             robots[0]["x"]=robots[0]["x"]-1
                             # ressources found?
                             self.harvestRessources((robots[0]["x"], robots[0]["y"]))
@@ -413,7 +413,7 @@ class SocketThread(threading.Thread):
                             return "430 Invalid Coordinates"
                     else:
                         return "480 Please add a robot to the map before trying to move it."
-                print self.map
+                print (robots)
                 #update map message
                 self.broadcastQueue.put("update")
                 return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
@@ -510,12 +510,15 @@ class SocketThread(threading.Thread):
         :return: true if coordinate is not blocking, false otherwise
         """
         #out of boundaries?
+        print ("checking "+str(coords))
         if(coords[0]>=self.map["dimensions"][0] or coords[0]<0 or
                    coords[1]>=self.map["dimensions"][1] or coords[1]<0):
             return False
         #obstacle?
         for element in self.map["blockingElements"]:
+            print ("verifying "+str(element))
             if element["x"]==coords[0] and element["y"]==coords[1]:
+                print("Blocking")
                 return False
         return True
 
