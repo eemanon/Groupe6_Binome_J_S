@@ -5,7 +5,7 @@ from socket import *
 import sys, json, threading, time
 
 SERVER = "localhost"
-PORT = 8001
+PORT = 9021
 TAILLE_TAMPON = 10240
 
 class Interface(QtGui.QWidget, Ui_Dialog):
@@ -88,7 +88,7 @@ class Interface(QtGui.QWidget, Ui_Dialog):
     
     def printMap(self, map):
         """Ajout de la carte a l'interface"""
-        img2 = QImage(self.mapToImage(map, (0,0,0)))
+        img2 = QImage(self.mapToImage(map, (255,255,102)))
         pixmap2 = QPixmap.fromImage(img2)
         pixmap2 = pixmap2.scaledToWidth(self.label.width())
         pixmap2 = pixmap2.scaledToHeight(self.label.height())
@@ -137,7 +137,7 @@ class Interface(QtGui.QWidget, Ui_Dialog):
 class ListenThread(threading.Thread):    
     """ Creation d'un thread pour l'ecoute du serveur
     Retourne la reponse de ce dernier"""    
-    def __init__(self, sock, lock, event):
+    def __init__(self, sock, lock, event, interface):
         threading.Thread.__init__(self)
         self.lock = lock
         self.sock = sock
@@ -148,8 +148,9 @@ class ListenThread(threading.Thread):
             with self.lock:
                 try:
                     reponse = self.sock.recv(TAILLE_TAMPON)
-                    #return ("Reponse = " + reponse.decode())
                     rep = reponse.decode().split(" ", 1)
+                    mapjson = json.loads(rep[1])
+                    interface.printMap(json.loads(mapjson))
                     return rep
                 except:
                     pass
@@ -160,7 +161,7 @@ class Client(socket, threading.Thread):
         #socket.socket.__init__(self)
         #threading.Thread.__init__(self)
         
-        self.sever= SERVER
+        self.server= SERVER
         self.port = PORT
         self.taille = TAILLE_TAMPON
         self.event_stop = threading.Event()
@@ -168,14 +169,14 @@ class Client(socket, threading.Thread):
         self.interface = interface
         
         self.sock = socket(AF_INET, SOCK_STREAM)
-        self.sock.connect((self.sever, self.port))
+        self.sock.connect((self.server, self.port))
         self.sock.setblocking(0)
         
-        self.rep = ListenThread(self.sock, self.lock_thread, self.event_stop)
+        self.rep = ListenThread(self.sock, self.lock_thread, self.event_stop, self.interface)
         self.rep.start()
     
-        #self.interface.textBrowser.setText(self.textBrowser.getText() + "C: " + commande)
-        #self.interface.textBrowser.setText("Connexion vers " + self.server + " : " + self.port + " reussie.")    
+        #self.interface.textBrowser.setText("Coucou")
+        self.interface.textBrowser.setText("Connexion vers " + self.server + " : " + str(self.port) + " reussie.")    
         #print("Entrez les commandes : ")
         
     def sendCmd(self, commande):        
