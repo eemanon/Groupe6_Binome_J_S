@@ -500,7 +500,8 @@ class SocketThread(threading.Thread):
                     print (self.users)
                     self.users[self.alias]["ressources"].append(element["name"])
                 #remove it from map
-                del element
+                self.map["ressources"].remove(element)
+                self.broadcastQueue.put("update")
 
     def validCoords(self, coords):
         """
