@@ -158,9 +158,6 @@ class ListenThread(threading.Thread):
 class Client(socket, threading.Thread):    
     """ Creation d'une connection TCP avec le serveur"""
     def __init__(self, interface):
-        #socket.socket.__init__(self)
-        #threading.Thread.__init__(self)
-        
         self.server= SERVER
         self.port = PORT
         self.taille = TAILLE_TAMPON
@@ -175,9 +172,7 @@ class Client(socket, threading.Thread):
         self.rep = ListenThread(self.sock, self.lock_thread, self.event_stop, self.interface)
         self.rep.start()
     
-        #self.interface.textBrowser.setText("Coucou")
-        self.interface.textBrowser.setText("Connexion vers " + self.server + " : " + str(self.port) + " reussie.")    
-        #print("Entrez les commandes : ")
+        self.interface.textBrowser.setText("Connexion vers " + self.server + " : " + str(self.port) + " reussie.\n\nBienvenue sur Space6")
         
     def sendCmd(self, commande):        
         """ Envois de la commande passee en parametre au serveur
@@ -186,7 +181,6 @@ class Client(socket, threading.Thread):
             self.sendQuit()
         else:
             with self.lock_thread:
-                #self.textBrowser.setText("C: " + commande)
                 self.sock.send(commande.upper().encode())
                 time.sleep(0.3)
                 reponse = self.sock.recv(self.taille)
@@ -198,7 +192,8 @@ class Client(socket, threading.Thread):
         msg = "quit"
         self.sock.send(msg.upper().encode())
         self.event_stop.set()
-        #self.interface.textBrowser.setText("Deconnexion.")
+        self.rep.join()
+        self.interface.textBrowser.setText("Deconnexion.")
         self.sock.close()
 
 
