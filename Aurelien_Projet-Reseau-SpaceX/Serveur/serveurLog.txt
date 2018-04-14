@@ -1,0 +1,147 @@
+<<<<<<< HEAD
+=======
+12/04/2018 22:03:04 Server started
+12/04/2018 22:03:04 Listen on: 9065
+12/04/2018 22:03:08Received A from 127.0.0.1:55639
+12/04/2018 22:03:10Received QUIT from 127.0.0.1:55639
+<<<<<<< HEAD
+13/04/2018 10:45:39 Server started
+13/04/2018 10:45:39 Listen on: 9065
+=======
+12/04/2018 23:23:03 Server stopped...
+
+12/04/2018 23:23:04 Server started
+12/04/2018 23:23:04 Listen on: 8000
+12/04/2018 23:27:06Received CONNECT KAPPA from 127.0.0.1:45085
+12/04/2018 23:27:06Received INFO from 127.0.0.1:41131
+12/04/2018 23:28:27 Server started
+12/04/2018 23:28:27 Listen on: 8000
+12/04/2018 23:28:35Received CONNECT KAPPA from 127.0.0.1:42325
+12/04/2018 23:28:35Received INFO from 127.0.0.1:50180
+12/04/2018 23:30:06 Server started
+12/04/2018 23:30:06 Listen on: 8000
+12/04/2018 23:30:16Received CONNECT KAPPA from 127.0.0.1:47604
+12/04/2018 23:31:56 Server started
+12/04/2018 23:31:56 Listen on: 8000
+12/04/2018 23:32:50Received CONNECT KAPPA from 127.0.0.1:55742
+12/04/2018 23:32:51Received INFO from 127.0.0.1:55655
+12/04/2018 23:37:11 Server started
+12/04/2018 23:37:11 Listen on: 8000
+12/04/2018 23:37:21Received CONNECT KAPPA from 127.0.0.1:47578
+12/04/2018 23:37:21Received INFO from 127.0.0.1:51740
+12/04/2018 23:48:24 Server started
+12/04/2018 23:48:24 Listen on: 8000
+12/04/2018 23:48:35Received CONNECT KAPPA from 127.0.0.1:55560
+12/04/2018 23:48:35Received INFO from 127.0.0.1:36346
+13/04/2018 00:33:05 Server started
+13/04/2018 00:33:05 Listen on: 8000
+13/04/2018 00:33:34Received CONNECT KAPPA from 127.0.0.1:60709
+13/04/2018 00:36:29Received CONNECT KAPPA from 127.0.0.1:44045
+13/04/2018 00:36:35 Server started
+13/04/2018 00:36:35 Listen on: 8000
+13/04/2018 00:36:40Received CONNECT KAPPA from 127.0.0.1:49603
+13/04/2018 00:36:41Received INFO from 127.0.0.1:41223
+13/04/2018 00:37:37 Server started
+13/04/2018 00:37:37 Listen on: 8000
+13/04/2018 00:37:46Received CONNECT KAPPA from 127.0.0.1:38650
+13/04/2018 00:37:46Received INFO from 127.0.0.1:33945
+13/04/2018 00:38:00 Server started
+13/04/2018 00:38:00 Listen on: 8000
+13/04/2018 00:38:50Received CONNECT KAPPA from 127.0.0.1:51657
+13/04/2018 00:38:50Received INFO from 127.0.0.1:38673
+13/04/2018 00:39:40 Server started
+13/04/2018 00:39:40 Listen on: 8000
+13/04/2018 00:39:48Received CONNECT KAPPA from 127.0.0.1:46152
+13/04/2018 00:39:48Received INFO from 127.0.0.1:45309
+13/04/2018 00:41:10 Server started
+13/04/2018 00:41:10 Listen on: 8000
+13/04/2018 00:41:21Received CONNECT KAPPA from 127.0.0.1:46550
+13/04/2018 00:41:21Received INFO from 127.0.0.1:49389
+13/04/2018 00:45:15 Server started
+13/04/2018 00:45:15 Listen on: 8000
+13/04/2018 00:45:25Received CONNECT KAPPA from 127.0.0.1:37303
+13/04/2018 00:45:42 Server started
+13/04/2018 00:45:42 Listen on: 8000
+13/04/2018 00:47:37Received CONNECT KAPPA from 127.0.0.1:55356
+13/04/2018 00:47:37Received INFO from 127.0.0.1:50870
+13/04/2018 00:48:14 Server started
+13/04/2018 00:48:14 Listen on: 8000
+13/04/2018 00:48:42Received CONNECT KAPPA from 127.0.0.1:42884
+13/04/2018 00:48:42Received INFO from 127.0.0.1:50492
+13/04/2018 00:49:41Received RIGHT from 127.0.0.1:44552
+13/04/2018 00:49:41Received UPDATE from 127.0.0.1:37464
+13/04/2018 00:49:43Received UP from 127.0.0.1:45873
+13/04/2018 00:49:43Received UPDATE from 127.0.0.1:39977
+13/04/2018 00:49:44Received LEFT from 127.0.0.1:52341
+13/04/2018 00:49:44Received UPDATE from 127.0.0.1:47563
+13/04/2018 00:57:31 Server started
+13/04/2018 00:57:31 Listen on: 8000
+13/04/2018 00:57:41Received CONNECT KAPPA from 127.0.0.1:44272
+13/04/2018 00:57:55 Server started
+13/04/2018 00:57:55 Listen on: 8000
+13/04/2018 00:58:26Received CONNECT KAPPA from 127.0.0.1:59998
+13/04/2018 00:58:26Received INFO from 127.0.0.1:56247
+13/04/2018 00:58:48 Server started
+13/04/2018 00:58:48 Listen on: 8000
+13/04/2018 01:02:32Received CONNECT KAPPA from 127.0.0.1:60605
+13/04/2018 01:06:02 Server started
+13/04/2018 01:06:02 Listen on: 8000
+13/04/2018 01:06:10Received CONNECT KAPPA from 127.0.0.1:35931
+13/04/2018 01:06:10Received INFO from 127.0.0.1:54303
+13/04/2018 01:06:23Received RIGHT from 127.0.0.1:45308
+13/04/2018 01:06:23Received UPDATE from 127.0.0.1:47912
+13/04/2018 01:06:24Received UP from 127.0.0.1:50627
+13/04/2018 01:06:24Received UPDATE from 127.0.0.1:42591
+13/04/2018 01:06:25Received LEFT from 127.0.0.1:47064
+13/04/2018 01:06:25Received UPDATE from 127.0.0.1:41049
+13/04/2018 01:06:26Received DOWN from 127.0.0.1:38867
+13/04/2018 01:06:26Received UPDATE from 127.0.0.1:37626
+13/04/2018 01:06:28Received UP from 127.0.0.1:49111
+13/04/2018 01:06:28Received UPDATE from 127.0.0.1:40344
+>>>>>>> 9adb3b6657a5e8885c72631368662d67546dc91b
+13/04/2018 11:12:33 Server started
+13/04/2018 11:12:33 Listen on: 9065
+13/04/2018 11:14:35 Server started
+13/04/2018 11:14:35 Listen on: 9065
+13/04/2018 11:20:42 Server started
+13/04/2018 11:20:42 Listen on: 9065
+13/04/2018 11:20:46Received CONNECT OA from 127.0.0.1:61620
+13/04/2018 11:21:51 Server started
+13/04/2018 11:21:51 Listen on: 9065
+13/04/2018 11:22:14Received CONNECT OA from 127.0.0.1:59428
+13/04/2018 11:24:30 Server started
+13/04/2018 11:24:30 Listen on: 9065
+13/04/2018 11:24:50Received CONNECT OA from 127.0.0.1:56849
+13/04/2018 11:24:56Received ADD (15,16) from 127.0.0.1:56849
+13/04/2018 11:25:00Received ADD (15,18) from 127.0.0.1:56849
+13/04/2018 11:25:02Received UP from 127.0.0.1:56849
+13/04/2018 11:25:03Received LEFT from 127.0.0.1:56849
+13/04/2018 11:25:05Received RIGHT from 127.0.0.1:56849
+13/04/2018 11:25:12Received QUIT from 127.0.0.1:56849
+13/04/2018 13:14:57 Server started
+13/04/2018 13:14:57 Listen on: 8000
+13/04/2018 13:16:05 Server started
+13/04/2018 13:16:05 Listen on: 8000
+>>>>>>> b793d1353da71b934191f9f97eb9010aef56beee
+13/04/2018 13:35:35 Server started
+13/04/2018 13:35:35 Listen on: 8000
+13/04/2018 13:36:53 Server started
+13/04/2018 13:36:53 Listen on: 8000
+13/04/2018 13:39:50 Server started
+13/04/2018 13:39:50 Listen on: 8000
+13/04/2018 13:42:22 Server started
+13/04/2018 13:42:22 Listen on: 8001
+13/04/2018 13:45:48 Server started
+13/04/2018 13:45:48 Listen on: 8000
+13/04/2018 13:48:21 Server started
+13/04/2018 13:48:21 Listen on: 8000
+13/04/2018 13:50:19 Server started
+13/04/2018 13:50:19 Listen on: 8001
+13/04/2018 13:52:43 Server started
+13/04/2018 13:52:43 Listen on: 8001
+13/04/2018 13:52:43> Envoie de la réponse : 220 {"dimensions": [42, 42], "blockingElements": [{"name": "Rock", "x": 12, "y": 13}, {"name": "Rock", "x": 15, "y": 32}], "ressources": [{"name": "Gold", "x": 12, "y": 13}, {"name": "Diamant", "x": 26, "y": 15}, {"name": "Gold", "x": 22, "y": 13}], "robots": [{"name": "R2D2", "x": 21, "y": 21}, {"name": "OA", "x": 11, "y": 13}, {"name": "KAPPA", "x": 2, "y": 1}]}
+13/04/2018 13:52:43> Envoie de la réponse : 200 {"Ressources": [], "Users": ["KAPPA"]}
+13/04/2018 13:52:43> Envoie de la réponse : 270 (2,2)
+13/04/2018 13:52:43> Envoie de la réponse : 270 (2,3)
+13/04/2018 13:52:43> Envoie de la réponse : 440 username invalid
+13/04/2018 13:52:43> Envoie de la réponse : 200 NEWNAME
