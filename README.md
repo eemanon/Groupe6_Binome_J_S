@@ -21,10 +21,9 @@ Un port d'ecoute autre que celui par defaut (port : 9021 definit dans le fichier
 # Lancer l'interface client
 
 Lancer dans une console le fichier ./client/Space6.py avec python.
-Le client ecoute par defaut le serveur en local. L'adresse du serveur peut etre modifier directement dans le fichier de configuration ./client/spaceX.conf .
-Un port d'ecoute autre que celui par defaut (port : 9021 definit dans le fichier de configuration ./client/spaceX.conf) peut etre passe en parametre.
+Le client ecoute par defaut le serveur en local. sur le port 9021 definit dans le code de ./client/Space6.py .
 
-	$python ./client/Space6.py <port>
+	$python ./client/Space6.py
 	
 # Commandes client
 
