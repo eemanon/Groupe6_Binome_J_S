@@ -337,11 +337,12 @@ class SocketThread(threading.Thread):
                             robots[0]["y"]=robots[0]["y"]+1
                             # ressources found?
                             self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                            self.broadcastQueue.put("update")
+                            return "270 (" + str(robots[0]["x"]) + "," + str(robots[0]["y"]) + ")"
                         else:
                             return "430 Invalid Coordinates"
                     else:
                         return "480 Please add a robot to the map before trying to move it."
-                print self.map
                 #update map message
                 self.broadcastQueue.put("update")
                 return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
@@ -362,6 +363,8 @@ class SocketThread(threading.Thread):
                                 robots[0]["y"] = robots[0]["y"] - 1
                                 # ressources found?
                                 self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                                self.broadcastQueue.put("update")
+                                return "270 (" + str(robots[0]["x"]) + "," + str(robots[0]["y"]) + ")"
                             else:
                                 return "430 Invalid Coordinates"
                         else:
@@ -387,6 +390,8 @@ class SocketThread(threading.Thread):
                             robots[0]["x"]=robots[0]["x"]+1
                             # ressources found?
                             self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                            self.broadcastQueue.put("update")
+                            return "270 (" + str(robots[0]["x"]) + "," + str(robots[0]["y"]) + ")"
                         else:
                             return "430 Invalid Coordinates"
                     else:
@@ -412,11 +417,12 @@ class SocketThread(threading.Thread):
                             robots[0]["x"]=robots[0]["x"]-1
                             # ressources found?
                             self.harvestRessources((robots[0]["x"], robots[0]["y"]))
+                            self.broadcastQueue.put("update")
+                            return "270 (" + str(robots[0]["x"]) + "," + str(robots[0]["y"]) + ")"
                         else:
                             return "430 Invalid Coordinates"
                     else:
                         return "480 Please add a robot to the map before trying to move it."
-                print (robots)
                 #update map message
                 self.broadcastQueue.put("update")
                 return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
@@ -519,13 +525,11 @@ class SocketThread(threading.Thread):
             return False
         #obstacle?
         for element in self.map["blockingElements"]:
-            print ("verifying "+str(element))
             if element["x"]==coords[0] and element["y"]==coords[1]:
                 print("Blocking")
                 return False
         #robot?
         for element in self.map["robots"]:
-            print ("verifying "+str(element))
             if element["x"]==coords[0] and element["y"]==coords[1] and element["name"] != self.alias:
                 print("Blocking")
                 return False
@@ -551,7 +555,7 @@ def createMap(size, blockingElements, ressources):
     print ("Populating map with " +str(round(size*size*blockingElements))+ " blocking Elements...")
     coords = set()
     while len(coords) < int(round(size*size*blockingElements)):
-        coords.add((random.randint(0, size), random.randint(0, size)))
+        coords.add((random.randint(0, size-1), random.randint(0, size-1)))
     for coordinate in coords:
         map["blockingElements"].append({"name": blocktypes[random.randint(0,len(blocktypes)-1)], "x":coordinate[0], "y":coordinate[1]})
     #Create Ressources for map...
@@ -559,7 +563,7 @@ def createMap(size, blockingElements, ressources):
     ress_coords = coords.copy()
     print ("Populating map with " + str(round(size*size*ressources)) + " ressources...")
     while len(ress_coords) < int(round(size*size*blockingElements)+round(size*size*ressources)):
-        ress_coords.add((random.randint(0, size), random.randint(0, size)))
+        ress_coords.add((random.randint(0, size-1), random.randint(0, size-1)))
     ress_coords = ress_coords.difference(coords)
     for coordinate in ress_coords:
         map["ressources"].append({"name": ressourcetypes[random.randint(0,len(ressourcetypes)-1)], "x":coordinate[0], "y":coordinate[1]})
@@ -575,13 +579,15 @@ def loadConfig():
     The following keys are set by default: port, path
     """
     config = {"port": 9021, "path":""}
-    with open("spaceX.conf", "r") as r:
-        for line in r:
-            conf = line.split()
-            config[conf[0]] = conf[1]
-    if (len(sys.argv) >= 2):
-        config["port"] = sys.argv[1]
-    return config
+    try:
+        with open("spaceXserver.conf", "r") as r:
+            for line in r:
+                conf = line.split()
+                config[conf[0]] = conf[1]
+    finally:
+        if (len(sys.argv) >= 2):
+            config["port"] = sys.argv[1]
+        return config
 
 if __name__ == '__main__':
 

@@ -6,7 +6,7 @@ import utilisateur, map , requetes
 
 
 def loadConfig():
-    with open("spaceX.conf", "r") as r:
+    with open("spaceXserver.conf", "r") as r:
         config = {}
         for line in r:
             conf = line.split(" ")
