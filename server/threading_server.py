@@ -18,11 +18,11 @@ class LogThread(threading.Thread):
         :return: None
         """
         print("started Log Thread")
-        with open(self.logpath + "spaceXlog.txt", "a") as f:
-            print ("opened log file")
-            while not self.active.is_set():
-                if not self.logQueue.empty():
-                    msg = self.logQueue.get(False)
+        print ("open log file at "+str(self.logpath))
+        while not self.active.is_set():
+            if not self.logQueue.empty():
+                with open(self.logpath + "spaceXlog.txt", "a") as f:
+                    msg = self.logQueue.get(False)+"\n"
                     f.write(msg)
         print("LogThread Closed")
 
@@ -182,22 +182,25 @@ class SocketThread(threading.Thread):
                 #check if blocking element on position
                 with self.maplock:
                     #si la coordonate est libre cad pas dans la liste des blockingelements ni robots:
-                    blocking = len(filter(lambda element: element["x"] == pos[0] and element["y"] == pos[1],self.map["blockingElements"]))
                     robots = len(filter(lambda element: element["x"] == pos[0] and element["y"] == pos[1], self.map["robots"]))
-                    if (robots+blocking)==0:
-                        print ("robot can be placed")
-                        #placing robot...
-                        #1 into map
-                        self.map["robots"].append({"name":self.alias, "x":pos[0],"y":pos[1]})
-                        #2 modifying its own coords
-                        self.position = pos
-                        print(self.map)
-                        # issue map modified sequence for all threads
-                        self.broadcastQueue.put("update")
-                        return "210 robot is added"
+                    blocking = len(filter(lambda element: element["x"] == pos[0] and element["y"] == pos[1],self.map["blockingElements"]))
+                    alreadyPlaced = len(filter(lambda element: element["name"] == self.alias, self.map["robots"]))
+                    if alreadyPlaced == 0:
+                        if (robots+blocking)==0:
+                            print ("robot can be placed")
+                            #placing robot...
+                            #1 into map
+                            self.map["robots"].append({"name":self.alias, "x":pos[0],"y":pos[1]})
+                            #2 modifying its own coords
+                            self.position = pos
+                            print(self.map)
+                            # issue map modified sequence for all threads
+                            self.broadcastQueue.put("update")
+                            return "210 robot is added"
+                        else:
+                            return "430 The coordinate is not free"
                     else:
-                        return "430 The coordinate is not free"
-
+                        return "430 You already have a robot on the map"
 
             except:
                 return "400 Coordinates invalid"
@@ -518,6 +521,12 @@ class SocketThread(threading.Thread):
         for element in self.map["blockingElements"]:
             print ("verifying "+str(element))
             if element["x"]==coords[0] and element["y"]==coords[1]:
+                print("Blocking")
+                return False
+        #robot?
+        for element in self.map["robots"]:
+            print ("verifying "+str(element))
+            if element["x"]==coords[0] and element["y"]==coords[1] and element["name"] != self.alias:
                 print("Blocking")
                 return False
         return True
