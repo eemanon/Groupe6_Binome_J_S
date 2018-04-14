@@ -32,12 +32,12 @@ Une fois le serveur puis l'interface client lances, l'utilisateur dipose de diff
 pour gerer le comportement de son robot.
 
 	. CONNECT [NomDuRobot]	:	connexion au serveur
-	. ADD (X,Y) 			:	ajout du robot sur la carte aux coordonnees (abscisse = X, ordonnee = Y)
-	. UP					:	deplace le robot vers le haut
-	. DOWN					:	deplace le robot vers le bas
-	. LEFT					:	deplace le robot vers la gauche
-	. RIGHT					:	deplace le robot vers la droite
-	. PAUSE					:	met le robot en pause
-	. RUN					:	redemare le robot apres qu'il ait ete mis en pause
-	. INFO					:	affiche les ressources collectees par le robot et le nom des autres client connectes au serveur
-	. QUIT					:	deconnexion au serveur
+	. ADD (X,Y)	:	ajout du robot sur la carte aux coordonnees (abscisse = X, ordonnee = Y)
+	. UP	:	deplace le robot vers le haut
+	. DOWN	:	deplace le robot vers le bas
+	. LEFT	:	deplace le robot vers la gauche
+	. RIGHT	:	deplace le robot vers la droite
+	. PAUSE	:	met le robot en pause
+	. RUN	:	redemare le robot apres qu'il ait ete mis en pause
+	. INFO	:	affiche les ressources collectees par le robot et le nom des autres client connectes au serveur
+	. QUIT	:	deconnexion au serveur
