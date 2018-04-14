@@ -1,0 +1,1 @@
+{"dimensions": [42, 42], "blockingElements": [{"name": "Rock", "x": 12, "y": 13}, {"name": "Rock", "x": 15, "y": 32}], "ressources": [{"name": "Gold", "x": 12, "y": 13}, {"name": "Diamant", "x": 26, "y": 15}, {"name": "Gold", "x": 22, "y": 13}], "robots": [{"name": "R2D2", "x": 21, "y": 21}, {"name": "OA", "x": 11, "y": 13}, {"name": "NEWNAME", "x": 2, "y": 3}]}
