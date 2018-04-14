@@ -344,8 +344,6 @@ class SocketThread(threading.Thread):
                     else:
                         return "480 Please add a robot to the map before trying to move it."
                 #update map message
-                self.broadcastQueue.put("update")
-                return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
             else:
                 return "480 Please connect before trying to move a robot."
         else:
@@ -369,10 +367,7 @@ class SocketThread(threading.Thread):
                                 return "430 Invalid Coordinates"
                         else:
                             return "480 Please add a robot to the map before trying to move it."
-                    print self.map
                     # update map message
-                    self.broadcastQueue.put("update")
-                    return "270 (" + str(robots[0]["x"]) + "," + str(robots[0]["y"]) + ")"
                 else:
                     return "480 Please connect before trying to move a robot."
         else:
@@ -396,10 +391,6 @@ class SocketThread(threading.Thread):
                             return "430 Invalid Coordinates"
                     else:
                         return "480 Please add a robot to the map before trying to move it."
-                print self.map
-                #update map message
-                self.broadcastQueue.put("update")
-                return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
             else:
                 return "480 Please connect before trying to move a robot."
         else:
@@ -423,9 +414,6 @@ class SocketThread(threading.Thread):
                             return "430 Invalid Coordinates"
                     else:
                         return "480 Please add a robot to the map before trying to move it."
-                #update map message
-                self.broadcastQueue.put("update")
-                return "270 ("+ str(robots[0]["x"]) +","+ str(robots[0]["y"]) +")"
             else:
                 return "480 Please connect before trying to move a robot."
         else:
