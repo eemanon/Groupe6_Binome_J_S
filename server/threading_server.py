@@ -575,7 +575,7 @@ def loadConfig():
     The following keys are set by default: port, path
     """
     config = {"port": 9021, "path":""}
-    with open("spaceX.conf", "r") as r:
+    with open("spaceXserver.conf", "r") as r:
         for line in r:
             conf = line.split()
             config[conf[0]] = conf[1]
